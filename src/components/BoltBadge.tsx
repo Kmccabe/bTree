@@ -1,6 +1,7 @@
 import React from 'react';
 import { ExternalLink, Zap } from 'lucide-react';
 
+// Force update for Netlify deployment - 2025-01-27
 interface BoltBadgeProps {
   variant?: 'default' | 'minimal' | 'footer' | 'hero';
   className?: string;
