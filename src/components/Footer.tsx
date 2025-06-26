@@ -20,7 +20,15 @@ const Footer: React.FC = () => {
               Experimental Economics Platform - Conduct cutting-edge economic research with 
               real monetary incentives, transparent data collection, and automated participant payments.
             </p>
-            <BoltBadge variant="default" className="mb-4" />
+            
+            {/* Prominent Bolt Badge in Footer */}
+            <div className="mb-4">
+              <BoltBadge variant="default" />
+            </div>
+            
+            <p className="text-gray-400 text-sm">
+              Powered by AI-driven development tools for rapid prototyping and deployment.
+            </p>
           </div>
 
           {/* Quick Links */}
@@ -94,6 +102,16 @@ const Footer: React.FC = () => {
                   Algorand Docs
                 </a>
               </li>
+              <li>
+                <a 
+                  href="https://bolt.new" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-gray-300 hover:text-white transition-colors"
+                >
+                  Built with Bolt.new
+                </a>
+              </li>
             </ul>
           </div>
         </div>
@@ -133,6 +151,8 @@ const Footer: React.FC = () => {
               >
                 <Mail className="w-5 h-5" />
               </a>
+              
+              {/* Footer Bolt Badge */}
               <BoltBadge variant="footer" />
             </div>
           </div>

@@ -98,14 +98,14 @@ const HomePage: React.FC = () => {
               </Link>
             </motion.div>
 
-            {/* Bolt Badge in Hero */}
+            {/* Enhanced Bolt Badge in Hero */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.6 }}
               className="flex justify-center"
             >
-              <BoltBadge variant="default" />
+              <BoltBadge variant="hero" />
             </motion.div>
           </div>
         </div>
@@ -241,13 +241,18 @@ const HomePage: React.FC = () => {
               Join leading economists and researchers who are using blockchain technology 
               to conduct more reliable and transparent experiments.
             </p>
-            <Link
-              to="/dashboard"
-              className="inline-flex items-center space-x-2 px-8 py-4 bg-white text-primary-600 rounded-xl hover:bg-gray-50 transition-colors font-semibold text-lg shadow-lg"
-            >
-              <span>Get Started Today</span>
-              <ArrowRight className="w-5 h-5" />
-            </Link>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+              <Link
+                to="/dashboard"
+                className="inline-flex items-center space-x-2 px-8 py-4 bg-white text-primary-600 rounded-xl hover:bg-gray-50 transition-colors font-semibold text-lg shadow-lg"
+              >
+                <span>Get Started Today</span>
+                <ArrowRight className="w-5 h-5" />
+              </Link>
+              
+              {/* Additional Bolt Badge in CTA */}
+              <BoltBadge variant="default" className="bg-white/10 text-white border border-white/20 hover:bg-white/20" />
+            </div>
           </motion.div>
         </div>
       </section>
