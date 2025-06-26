@@ -73,7 +73,8 @@ const HomePage: React.FC = () => {
               className="text-xl md:text-2xl text-gray-600 mb-8 max-w-3xl mx-auto leading-relaxed"
             >
               Conduct cutting-edge economic research with real monetary incentives, 
-              transparent data collection, and automated participant payments.
+              transparent data collection, and automated participant payments. 
+              <span className="text-primary-600 font-semibold">Now live and ready for research!</span>
             </motion.p>
 
             <motion.div 
