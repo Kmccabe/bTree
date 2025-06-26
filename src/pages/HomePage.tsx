@@ -98,14 +98,28 @@ const HomePage: React.FC = () => {
               </Link>
             </motion.div>
 
-            {/* Enhanced Bolt Badge in Hero */}
+            {/* PROMINENT Bolt Badge in Hero - Made More Visible */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.6 }}
+              className="flex justify-center mb-4"
+            >
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-4 shadow-lg border border-gray-200">
+                <BoltBadge variant="hero" />
+              </div>
+            </motion.div>
+
+            {/* Additional Badge with Different Style */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.8 }}
               className="flex justify-center"
             >
-              <BoltBadge variant="hero" />
+              <div className="text-sm text-gray-500 bg-gray-100 px-4 py-2 rounded-full">
+                🚀 Powered by AI-driven development • Built with Bolt.new
+              </div>
             </motion.div>
           </div>
         </div>
