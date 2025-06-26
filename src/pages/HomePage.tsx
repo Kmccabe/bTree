@@ -12,6 +12,7 @@ import {
   CheckCircle,
   Plus
 } from 'lucide-react';
+import BoltBadge from '../components/BoltBadge';
 
 const HomePage: React.FC = () => {
   const features = [
@@ -79,7 +80,7 @@ const HomePage: React.FC = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.4 }}
-              className="flex flex-col sm:flex-row gap-4 justify-center items-center"
+              className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-8"
             >
               <Link
                 to="/dashboard"
@@ -96,6 +97,16 @@ const HomePage: React.FC = () => {
                 <span className="font-semibold text-lg">Try Trust Game Demo</span>
               </Link>
             </motion.div>
+
+            {/* Bolt Badge in Hero */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.6 }}
+              className="flex justify-center"
+            >
+              <BoltBadge variant="default" />
+            </motion.div>
           </div>
         </div>
       </section>
@@ -105,7 +116,7 @@ const HomePage: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-              Why Choose EconLab?
+              Why Choose bTree?
             </h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
               Built specifically for researchers who need reliable, scalable, and transparent experimental platforms.

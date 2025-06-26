@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AlgorandProvider } from './contexts/AlgorandContext';
 import Navbar from './components/Navbar';
+import Footer from './components/Footer';
 import HomePage from './pages/HomePage';
 import Dashboard from './pages/Dashboard';
 import ExperimentCreator from './pages/ExperimentCreator';
@@ -16,9 +17,9 @@ function App() {
   return (
     <AlgorandProvider>
       <Router>
-        <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-secondary-50">
+        <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-secondary-50 flex flex-col">
           <Navbar />
-          <main className="pt-16">
+          <main className="pt-16 flex-grow">
             <Routes>
               <Route path="/" element={<HomePage />} />
               <Route path="/dashboard" element={<Dashboard />} />
@@ -30,6 +31,7 @@ function App() {
               <Route path="/trust-game-lobby/:experimentId" element={<TrustGameLobby />} />
             </Routes>
           </main>
+          <Footer />
           <Toaster 
             position="top-right"
             toastOptions={{
