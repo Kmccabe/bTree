@@ -53,7 +53,18 @@ interface UseGameSocketReturn {
   sendHeartbeat: (experimentId: string, sessionId: string) => void;
 }
 
-const SOCKET_URL = 'http://localhost:3001';
+// Dynamic socket URL based on environment
+const getSocketUrl = () => {
+  // In production (Netlify), use the Railway backend URL
+  if (import.meta.env.PROD) {
+    // You'll need to replace this with your actual Railway URL after deployment
+    return 'https://your-railway-app.railway.app';
+  }
+  // In development, use localhost
+  return 'http://localhost:3001';
+};
+
+const SOCKET_URL = getSocketUrl();
 
 export const useGameSocket = (): UseGameSocketReturn => {
   const socketRef = useRef<Socket | null>(null);
@@ -73,6 +84,8 @@ export const useGameSocket = (): UseGameSocketReturn => {
   const joinedGamesRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
+    console.log('🔌 Connecting to socket server:', SOCKET_URL);
+    
     // Initialize socket connection
     socketRef.current = io(SOCKET_URL, {
       transports: ['websocket', 'polling'],
@@ -85,7 +98,7 @@ export const useGameSocket = (): UseGameSocketReturn => {
     const socket = socketRef.current;
 
     socket.on('connect', () => {
-      console.log('Connected to game server');
+      console.log('✅ Connected to game server at:', SOCKET_URL);
       setConnected(true);
       // Clear joined tracking on reconnect so we can rejoin rooms
       joinedExperimentsRef.current.clear();
@@ -93,7 +106,7 @@ export const useGameSocket = (): UseGameSocketReturn => {
     });
 
     socket.on('disconnect', () => {
-      console.log('Disconnected from game server');
+      console.log('❌ Disconnected from game server');
       setConnected(false);
       // Clear joined tracking on disconnect
       joinedExperimentsRef.current.clear();
@@ -101,13 +114,13 @@ export const useGameSocket = (): UseGameSocketReturn => {
     });
 
     socket.on('gameStateUpdate', (newGameState: GameState) => {
-      console.log('Game state updated:', newGameState);
+      console.log('🎮 Game state updated:', newGameState);
       setGameState(newGameState);
     });
 
     // Enhanced participant update handler
     socket.on('participantUpdate', ({ participants: newParticipants, allReady, gameStarted: gameHasStarted, experimentStatus: expStatus }) => {
-      console.log('Participants updated:', {
+      console.log('👥 Participants updated:', {
         participants: newParticipants.length,
         allReady,
         gameStarted: gameHasStarted,
@@ -125,7 +138,7 @@ export const useGameSocket = (): UseGameSocketReturn => {
 
     // Enhanced game starting handler
     socket.on('gameStarting', (data) => {
-      console.log('Game is starting!', data);
+      console.log('🚀 Game is starting!', data);
       setGameStarted(true);
       
       // Emit custom event for components to listen to
@@ -133,15 +146,15 @@ export const useGameSocket = (): UseGameSocketReturn => {
     });
 
     socket.on('connect_error', (error) => {
-      console.error('Socket connection error:', error);
+      console.error('🔌 Socket connection error:', error);
     });
 
     socket.on('reconnect', (attemptNumber) => {
-      console.log('Reconnected to server after', attemptNumber, 'attempts');
+      console.log('🔄 Reconnected to server after', attemptNumber, 'attempts');
     });
 
     socket.on('reconnect_error', (error) => {
-      console.error('Reconnection failed:', error);
+      console.error('🔄 Reconnection failed:', error);
     });
 
     return () => {
@@ -153,7 +166,7 @@ export const useGameSocket = (): UseGameSocketReturn => {
     if (socketRef.current && connected && !joinedExperimentsRef.current.has(experimentId)) {
       socketRef.current.emit('joinExperiment', experimentId);
       joinedExperimentsRef.current.add(experimentId);
-      console.log('Joined experiment room:', experimentId);
+      console.log('🏠 Joined experiment room:', experimentId);
     }
   };
 
@@ -161,23 +174,23 @@ export const useGameSocket = (): UseGameSocketReturn => {
     if (socketRef.current && connected && !joinedGamesRef.current.has(gameId)) {
       socketRef.current.emit('joinGame', gameId);
       joinedGamesRef.current.add(gameId);
-      console.log('Joined game room:', gameId);
+      console.log('🎮 Joined game room:', gameId);
     }
   };
 
   const submitDecision = (gameId: string, playerId: string, decision: Partial<GameState>) => {
     if (socketRef.current && connected) {
       socketRef.current.emit('submitDecision', { gameId, playerId, decision });
-      console.log('Submitted decision:', { gameId, playerId, decision });
+      console.log('📤 Submitted decision:', { gameId, playerId, decision });
     } else {
-      console.warn('Cannot submit decision: socket not connected');
+      console.warn('⚠️ Cannot submit decision: socket not connected');
     }
   };
 
   const setParticipantReady = (experimentId: string, sessionId: string) => {
     if (socketRef.current && connected) {
       socketRef.current.emit('participantReady', { experimentId, sessionId });
-      console.log('Marked participant ready:', { experimentId, sessionId: sessionId.slice(-8) });
+      console.log('✅ Marked participant ready:', { experimentId, sessionId: sessionId.slice(-8) });
     }
   };
 

@@ -6,15 +6,54 @@ const { v4: uuidv4 } = require('uuid');
 
 const app = express();
 const server = http.createServer(app);
+
+// Enhanced CORS configuration for production deployment
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'https://dulcet-frangollo-b46f7c.netlify.app', // Your current Netlify domain
+  'https://btree-experimental-economics.netlify.app', // If you set up custom domain
+  // Railway will provide the backend URL - we'll add it dynamically
+];
+
+// Add Railway domain if available
+if (process.env.RAILWAY_STATIC_URL) {
+  allowedOrigins.push(`https://${process.env.RAILWAY_STATIC_URL}`);
+}
+
 const io = socketIo(server, {
   cors: {
-    origin: ["http://localhost:5173", "http://localhost:3000"],
-    methods: ["GET", "POST"]
+    origin: allowedOrigins,
+    methods: ["GET", "POST"],
+    credentials: true
   }
 });
 
-app.use(cors());
+app.use(cors({
+  origin: allowedOrigins,
+  credentials: true
+}));
 app.use(express.json());
+
+// Health check endpoint for Railway
+app.get('/', (req, res) => {
+  res.json({ 
+    status: 'healthy', 
+    message: 'bTree Trust Game Server is running',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    uptime: process.uptime(),
+    memory: process.memoryUsage(),
+    timestamp: new Date().toISOString()
+  });
+});
 
 // In-memory storage (in production, use a proper database)
 const experiments = new Map();
@@ -748,14 +787,18 @@ setInterval(() => {
   }
 }, 30000);
 
+// Use Railway's PORT environment variable or fallback to 3001
 const PORT = process.env.PORT || 3001;
-server.listen(PORT, () => {
-  log.info('Trust Game Server started', { 
+
+server.listen(PORT, '0.0.0.0', () => {
+  log.info('bTree Trust Game Server started', { 
     port: PORT,
     environment: process.env.NODE_ENV || 'development',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    railwayUrl: process.env.RAILWAY_STATIC_URL || 'localhost'
   });
   log.info('WebSocket server ready for connections');
   log.info('Enhanced synchronization and participant management enabled');
   log.info('CRITICAL: All participants must finish instructions before game starts');
+  log.info('Production CORS configured for Netlify deployment');
 });

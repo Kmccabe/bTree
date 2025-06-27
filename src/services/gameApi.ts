@@ -1,4 +1,15 @@
-const API_BASE_URL = 'http://localhost:3001/api';
+// Dynamic API URL based on environment
+const getApiUrl = () => {
+  // In production (Netlify), use the Railway backend URL
+  if (import.meta.env.PROD) {
+    // You'll need to replace this with your actual Railway URL after deployment
+    return 'https://your-railway-app.railway.app/api';
+  }
+  // In development, use localhost
+  return 'http://localhost:3001/api';
+};
+
+const API_BASE_URL = getApiUrl();
 
 export interface Experiment {
   id: string;
@@ -41,6 +52,8 @@ export interface GameSession {
 
 class GameAPI {
   async createExperiment(experimentData: Partial<Experiment>): Promise<{ experimentId: string; experiment: Experiment }> {
+    console.log('🔗 Creating experiment via API:', API_BASE_URL);
+    
     const response = await fetch(`${API_BASE_URL}/experiments`, {
       method: 'POST',
       headers: {
@@ -71,6 +84,8 @@ class GameAPI {
     walletAddress: string, 
     sessionId: string
   ): Promise<{ participant: Participant; experiment: Experiment }> {
+    console.log('🔗 Joining experiment via API:', API_BASE_URL);
+    
     const response = await fetch(`${API_BASE_URL}/experiments/${experimentId}/join`, {
       method: 'POST',
       headers: {
