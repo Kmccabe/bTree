@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@algorandfoundation/algokit-utils": "^8.0.0",
-    "@perawallet/connect": "^1.4.0",
+    "@perawallet/connect": "^1.5.0",
     "algosdk": "^3.0.0",
     "buffer": "^6.0.3",
     "clsx": "^2.0.0",
