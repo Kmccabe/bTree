@@ -2,7 +2,7 @@
 const getApiUrl = () => {
   // In production (Netlify), use the Railway backend URL
   if (import.meta.env.PROD) {
-    return 'https://bTree-production.up.railway.app/api';
+    return 'https://btree-production.up.railway.app/api';
   }
   // In development, use localhost
   return 'http://localhost:3001/api';

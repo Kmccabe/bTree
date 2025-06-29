@@ -57,7 +57,7 @@ interface UseGameSocketReturn {
 const getSocketUrl = () => {
   // In production (Netlify), use the Railway backend URL
   if (import.meta.env.PROD) {
-    return 'https://bTree-production.up.railway.app';
+    return 'https://btree-production.up.railway.app';
   }
   // In development, use localhost
   return 'http://localhost:3001';
