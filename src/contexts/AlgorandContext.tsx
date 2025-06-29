@@ -567,7 +567,7 @@ export const AlgorandProvider: React.FC<AlgorandProviderProps> = ({ children }) 
     }
   };
 
-  // FIXED: Enhanced signTransaction method - pass transaction object directly to Pera Wallet
+  // FIXED: Enhanced signTransaction method for algosdk v3.0.0 and Pera Wallet compatibility
   const signTransaction = async (txn: algosdk.Transaction): Promise<Uint8Array> => {
     try {
       // CRITICAL: Get the receiver and amount using the correct algosdk v3 properties
@@ -625,14 +625,16 @@ export const AlgorandProvider: React.FC<AlgorandProviderProps> = ({ children }) 
       });
       
       // FIXED: Pass the transaction object directly to Pera Wallet
-      // Pera Wallet Connect expects the original algosdk.Transaction object, not bytes
-      paymentLog.transaction('PASSING_TXN_OBJECT_TO_PERA_WALLET', {
+      // The latest @perawallet/connect should handle algosdk v3.0.0 transactions properly
+      paymentLog.transaction('PASSING_TXN_TO_PERA_WALLET', {
         txnConstructor: txn.constructor.name,
         txnType: typeof txn,
-        isTransaction: txn instanceof algosdk.Transaction
+        isTransaction: txn instanceof algosdk.Transaction,
+        hasRequiredProperties: !!(txn.sender && txn.fee && txn.firstValid && txn.lastValid)
       });
 
       // CRITICAL: Pass the transaction object directly (not converted to bytes)
+      // Pera Wallet Connect v1.4.1+ should handle algosdk v3.0.0 properly
       const signedTxnArray = await peraWallet.signTransaction([
         { txn: txn }  // Pass the transaction object directly
       ]);
