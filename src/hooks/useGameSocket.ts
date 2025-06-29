@@ -55,12 +55,14 @@ interface UseGameSocketReturn {
 
 // Dynamic socket URL based on environment
 const getSocketUrl = () => {
-  // In production (Netlify), use the Railway backend URL
-  if (import.meta.env.PROD) {
-    return 'https://btree-production.up.railway.app';
-  }
-  // In development, use localhost
-  return 'http://localhost:3001';
+  // Always use Railway backend for now since that's where your server is running
+  return 'https://btree-production.up.railway.app';
+  
+  // Original logic (commented out for now):
+  // if (import.meta.env.PROD) {
+  //   return 'https://btree-production.up.railway.app';
+  // }
+  // return 'http://localhost:3001';
 };
 
 const SOCKET_URL = getSocketUrl();
