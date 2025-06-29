@@ -84,6 +84,7 @@ export const useGameSocket = (): UseGameSocketReturn => {
 
   useEffect(() => {
     console.log('🔌 Connecting to socket server:', SOCKET_URL);
+    console.log('🔌 Environment:', import.meta.env.PROD ? 'PRODUCTION' : 'DEVELOPMENT');
     
     // Initialize socket connection
     socketRef.current = io(SOCKET_URL, {
@@ -146,6 +147,12 @@ export const useGameSocket = (): UseGameSocketReturn => {
 
     socket.on('connect_error', (error) => {
       console.error('🔌 Socket connection error:', error);
+      console.error('🔌 Error details:', {
+        message: error.message,
+        description: error.description,
+        context: error.context,
+        type: error.type
+      });
     });
 
     socket.on('reconnect', (attemptNumber) => {
@@ -156,7 +163,12 @@ export const useGameSocket = (): UseGameSocketReturn => {
       console.error('🔄 Reconnection failed:', error);
     });
 
+    socket.on('reconnect_failed', () => {
+      console.error('🔄 All reconnection attempts failed');
+    });
+
     return () => {
+      console.log('🔌 Cleaning up socket connection');
       socket.disconnect();
     };
   }, []);
@@ -166,6 +178,13 @@ export const useGameSocket = (): UseGameSocketReturn => {
       socketRef.current.emit('joinExperiment', experimentId);
       joinedExperimentsRef.current.add(experimentId);
       console.log('🏠 Joined experiment room:', experimentId);
+    } else {
+      console.warn('⚠️ Cannot join experiment:', {
+        hasSocket: !!socketRef.current,
+        connected,
+        alreadyJoined: joinedExperimentsRef.current.has(experimentId),
+        experimentId
+      });
     }
   };
 
@@ -174,6 +193,13 @@ export const useGameSocket = (): UseGameSocketReturn => {
       socketRef.current.emit('joinGame', gameId);
       joinedGamesRef.current.add(gameId);
       console.log('🎮 Joined game room:', gameId);
+    } else {
+      console.warn('⚠️ Cannot join game:', {
+        hasSocket: !!socketRef.current,
+        connected,
+        alreadyJoined: joinedGamesRef.current.has(gameId),
+        gameId
+      });
     }
   };
 
@@ -190,6 +216,8 @@ export const useGameSocket = (): UseGameSocketReturn => {
     if (socketRef.current && connected) {
       socketRef.current.emit('participantReady', { experimentId, sessionId });
       console.log('✅ Marked participant ready:', { experimentId, sessionId: sessionId.slice(-8) });
+    } else {
+      console.warn('⚠️ Cannot set participant ready: socket not connected');
     }
   };
 

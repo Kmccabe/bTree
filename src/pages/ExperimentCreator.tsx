@@ -18,7 +18,10 @@ import {
   Upload,
   Download,
   FolderOpen,
-  ExternalLink
+  ExternalLink,
+  AlertTriangle,
+  Wifi,
+  WifiOff
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -51,6 +54,7 @@ interface ExperimentConfig {
 const ExperimentCreator: React.FC = () => {
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
+  const [serverStatus, setServerStatus] = useState<'checking' | 'online' | 'offline'>('checking');
   const [config, setConfig] = useState<ExperimentConfig>({
     title: '',
     description: '',
@@ -71,6 +75,44 @@ const ExperimentCreator: React.FC = () => {
       timePerDecision: 300 // 5 minutes per decision
     }
   });
+
+  // Check server status on component mount
+  useEffect(() => {
+    checkServerStatus();
+  }, []);
+
+  const checkServerStatus = async () => {
+    setServerStatus('checking');
+    try {
+      const apiUrl = import.meta.env.PROD 
+        ? 'https://btree-production.up.railway.app' 
+        : 'http://localhost:3001';
+      
+      console.log('🔍 Checking server status at:', apiUrl);
+      
+      const response = await fetch(`${apiUrl}/health`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ Server is online:', data);
+        setServerStatus('online');
+        toast.success('Server connection verified');
+      } else {
+        console.warn('⚠️ Server responded with error:', response.status);
+        setServerStatus('offline');
+        toast.error('Server is not responding correctly');
+      }
+    } catch (error) {
+      console.error('❌ Server check failed:', error);
+      setServerStatus('offline');
+      toast.error('Cannot connect to server');
+    }
+  };
 
   // Scroll to top when step changes
   useEffect(() => {
@@ -218,6 +260,11 @@ const ExperimentCreator: React.FC = () => {
       return;
     }
 
+    if (serverStatus !== 'online') {
+      toast.error('Server is not available. Please check server status or try demo mode.');
+      return;
+    }
+
     try {
       toast.loading('Creating live experiment...', { id: 'launch' });
       
@@ -267,7 +314,18 @@ const ExperimentCreator: React.FC = () => {
       
     } catch (error) {
       console.error('Error launching experiment:', error);
-      toast.error('Failed to launch experiment. Please try again.', { id: 'launch' });
+      
+      // Provide more specific error messages
+      let errorMessage = 'Failed to launch experiment. ';
+      if (error.message.includes('Network error') || error.message.includes('fetch')) {
+        errorMessage += 'Cannot connect to server. Please check your internet connection or try demo mode.';
+      } else if (error.message.includes('HTTP')) {
+        errorMessage += `Server error: ${error.message}`;
+      } else {
+        errorMessage += 'Please try again or use demo mode.';
+      }
+      
+      toast.error(errorMessage, { id: 'launch' });
     }
   };
 
@@ -434,6 +492,62 @@ ${isOneRound ?
             animate={{ opacity: 1, x: 0 }}
             className="space-y-6"
           >
+            {/* Server Status */}
+            <div className={`border rounded-xl p-4 ${
+              serverStatus === 'online' ? 'bg-green-50 border-green-200' :
+              serverStatus === 'offline' ? 'bg-red-50 border-red-200' :
+              'bg-yellow-50 border-yellow-200'
+            }`}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  {serverStatus === 'online' ? <Wifi className="w-5 h-5 text-green-600" /> :
+                   serverStatus === 'offline' ? <WifiOff className="w-5 h-5 text-red-600" /> :
+                   <div className="w-5 h-5 border-2 border-yellow-600 border-t-transparent rounded-full animate-spin" />}
+                  <div>
+                    <h4 className={`font-medium ${
+                      serverStatus === 'online' ? 'text-green-900' :
+                      serverStatus === 'offline' ? 'text-red-900' :
+                      'text-yellow-900'
+                    }`}>
+                      Server Status: {serverStatus === 'online' ? 'Online' : serverStatus === 'offline' ? 'Offline' : 'Checking...'}
+                    </h4>
+                    <p className={`text-sm ${
+                      serverStatus === 'online' ? 'text-green-700' :
+                      serverStatus === 'offline' ? 'text-red-700' :
+                      'text-yellow-700'
+                    }`}>
+                      {serverStatus === 'online' ? 'Live experiments are available' :
+                       serverStatus === 'offline' ? 'Only demo mode available' :
+                       'Checking server connection...'}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={checkServerStatus}
+                  className="px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Refresh
+                </button>
+              </div>
+              
+              {serverStatus === 'offline' && (
+                <div className="mt-3 p-3 bg-red-100 border border-red-200 rounded-lg">
+                  <div className="flex items-start space-x-2">
+                    <AlertTriangle className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
+                    <div className="text-sm text-red-800">
+                      <p className="font-medium">Server Connection Failed</p>
+                      <p>Live experiments require server connection. You can still:</p>
+                      <ul className="list-disc list-inside mt-1 space-y-1">
+                        <li>Create and test experiments in demo mode</li>
+                        <li>Save drafts locally</li>
+                        <li>Export/import configurations</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Load/Save Options */}
             <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
               <h4 className="font-medium text-blue-900 mb-3">Configuration Management</h4>
@@ -987,6 +1101,19 @@ ${isOneRound ?
               )}
             </div>
 
+            {/* Server Status Warning */}
+            {serverStatus !== 'online' && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <h4 className="font-medium text-yellow-900 mb-2">⚠️ Server Status Warning</h4>
+                <div className="text-sm text-yellow-800 space-y-1">
+                  <p>• <strong>Server is currently offline:</strong> Live experiments are not available</p>
+                  <p>• <strong>Demo mode only:</strong> You can test the experiment locally</p>
+                  <p>• <strong>Save your work:</strong> Use "Save as Draft" to preserve your configuration</p>
+                  <p>• <strong>Try again later:</strong> Check server status and launch live when available</p>
+                </div>
+              </div>
+            )}
+
             {/* CRITICAL SYNCHRONIZATION WARNING */}
             <div className="bg-red-50 border border-red-200 rounded-lg p-4">
               <h4 className="font-medium text-red-900 mb-2">🔒 Synchronization Guarantee</h4>
@@ -1018,10 +1145,11 @@ ${isOneRound ?
               
               <button 
                 onClick={handleLaunchLiveExperiment}
-                className="flex items-center justify-center space-x-2 px-6 py-3 bg-gradient-to-r from-primary-600 to-secondary-600 text-white rounded-lg hover:from-primary-700 hover:to-secondary-700 transition-all duration-200 shadow-md hover:shadow-lg"
+                disabled={serverStatus !== 'online'}
+                className="flex items-center justify-center space-x-2 px-6 py-3 bg-gradient-to-r from-primary-600 to-secondary-600 text-white rounded-lg hover:from-primary-700 hover:to-secondary-700 transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <ExternalLink className="w-5 h-5" />
-                <span>Launch Live</span>
+                <span>{serverStatus === 'online' ? 'Launch Live' : 'Server Offline'}</span>
               </button>
             </div>
           </motion.div>
