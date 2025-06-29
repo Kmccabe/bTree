@@ -567,7 +567,7 @@ export const AlgorandProvider: React.FC<AlgorandProviderProps> = ({ children }) 
     }
   };
 
-  // CRITICAL: Enhanced signTransaction method with byte array conversion for Pera Wallet
+  // FIXED: Enhanced signTransaction method - pass transaction object directly to Pera Wallet
   const signTransaction = async (txn: algosdk.Transaction): Promise<Uint8Array> => {
     try {
       // CRITICAL: Get the receiver and amount using the correct algosdk v3 properties
@@ -624,33 +624,17 @@ export const AlgorandProvider: React.FC<AlgorandProviderProps> = ({ children }) 
         network
       });
       
-      // CRITICAL: Convert transaction to byte array for Pera Wallet compatibility
-      // This bypasses the "t2.map is not a function" error by providing raw transaction bytes
-      paymentLog.transaction('CONVERTING_TXN_TO_BYTE_ARRAY', {
+      // FIXED: Pass the transaction object directly to Pera Wallet
+      // Pera Wallet Connect expects the original algosdk.Transaction object, not bytes
+      paymentLog.transaction('PASSING_TXN_OBJECT_TO_PERA_WALLET', {
         txnConstructor: txn.constructor.name,
         txnType: typeof txn,
-        hasToBytesMethod: typeof txn.toByte === 'function'
+        isTransaction: txn instanceof algosdk.Transaction
       });
 
-      let txnBytes: Uint8Array;
-      try {
-        // Convert transaction to byte array using toByte() method
-        txnBytes = txn.toByte();
-        
-        paymentLog.transaction('TXN_CONVERTED_TO_BYTES_SUCCESS', {
-          bytesLength: txnBytes.length,
-          bytesType: typeof txnBytes,
-          isUint8Array: txnBytes instanceof Uint8Array,
-          firstFewBytes: Array.from(txnBytes.slice(0, 8)).join(',') + '...'
-        });
-      } catch (conversionError) {
-        paymentLog.error('TXN_BYTE_CONVERSION_FAILED', conversionError);
-        throw new Error(`Failed to convert transaction to bytes: ${conversionError.message}`);
-      }
-
-      // CRITICAL: Pass the byte array to Pera Wallet
+      // CRITICAL: Pass the transaction object directly (not converted to bytes)
       const signedTxnArray = await peraWallet.signTransaction([
-        { txn: txnBytes }  // Pass the byte array instead of the transaction object
+        { txn: txn }  // Pass the transaction object directly
       ]);
       
       paymentLog.transaction('TRANSACTION_SIGNED_SUCCESS', { 
