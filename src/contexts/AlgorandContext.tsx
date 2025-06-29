@@ -98,7 +98,7 @@ const logTransactionParams = (suggestedParams: any, attempt: number) => {
   // Method 3: JSON.stringify with BigInt replacer
   console.log('📋 Raw Parameters Object (JSON):', JSON.stringify(suggestedParams, bigIntReplacer, 2));
   
-  // Method 4: Individual property logging - FIXED: Use correct case for genesisID
+  // Method 4: Individual property logging
   console.log('🔍 Individual Properties:');
   Object.keys(suggestedParams).forEach(key => {
     const value = suggestedParams[key];
@@ -114,12 +114,12 @@ const logTransactionParams = (suggestedParams: any, attempt: number) => {
   // Method 7: console.error for maximum visibility
   console.error('🚨 FORCED VISIBILITY - TRANSACTION PARAMS:', suggestedParams);
   
-  // Method 8: Direct property access logging - FIXED: Use correct case for genesisID
+  // Method 8: Direct property access logging
   console.log('🎯 Direct Property Access:');
   console.log('  fee:', suggestedParams.fee);
-  console.log('  firstValid:', suggestedParams.firstValid);
-  console.log('  lastValid:', suggestedParams.lastValid);
-  console.log('  genesisID:', suggestedParams.genesisID); // FIXED: Capital 'D'
+  console.log('  firstRound:', suggestedParams.firstRound);
+  console.log('  lastRound:', suggestedParams.lastRound);
+  console.log('  genesisID:', suggestedParams.genesisID);
   console.log('  genesisHash:', suggestedParams.genesisHash);
   
   console.log(
@@ -127,53 +127,52 @@ const logTransactionParams = (suggestedParams: any, attempt: number) => {
   );
 };
 
-// CRITICAL: Enhanced transaction parameter validation for algosdk v3 with BigInt support
+// CRITICAL: Enhanced transaction parameter validation for algosdk v2.7.0
 const validateTransactionParams = (params: any): void => {
   paymentLog.transaction('VALIDATING_TRANSACTION_PARAMS', {
     fee: params.fee?.toString(),
-    firstValid: params.firstValid?.toString(),
-    firstValidType: typeof params.firstValid,
-    lastValid: params.lastValid?.toString(),
-    lastValidType: typeof params.lastValid,
-    genesisID: params.genesisID, // FIXED: Capital 'D'
+    firstRound: params.firstRound?.toString(),
+    firstRoundType: typeof params.firstRound,
+    lastRound: params.lastRound?.toString(),
+    lastRoundType: typeof params.lastRound,
+    genesisID: params.genesisID,
     genesisHash: params.genesisHash ? 'present' : 'missing'
   });
 
-  // algosdk v3 uses firstValid and lastValid instead of firstRound and lastRound
-  if (params.firstValid === undefined || params.firstValid === null) {
-    throw new Error('Transaction parameter firstValid is undefined or null. The Algorand node may not be responding correctly.');
+  // algosdk v2.7.0 uses firstRound and lastRound
+  if (params.firstRound === undefined || params.firstRound === null) {
+    throw new Error('Transaction parameter firstRound is undefined or null. The Algorand node may not be responding correctly.');
   }
 
-  if (params.lastValid === undefined || params.lastValid === null) {
-    throw new Error('Transaction parameter lastValid is undefined or null. The Algorand node may not be responding correctly.');
+  if (params.lastRound === undefined || params.lastRound === null) {
+    throw new Error('Transaction parameter lastRound is undefined or null. The Algorand node may not be responding correctly.');
   }
 
-  // CRITICAL: Convert BigInt to number for validation (algosdk v3 compatibility)
-  const firstValidNum = typeof params.firstValid === 'bigint' ? Number(params.firstValid) : params.firstValid;
-  const lastValidNum = typeof params.lastValid === 'bigint' ? Number(params.lastValid) : params.lastValid;
+  // Convert BigInt to number for validation if needed
+  const firstRoundNum = typeof params.firstRound === 'bigint' ? Number(params.firstRound) : params.firstRound;
+  const lastRoundNum = typeof params.lastRound === 'bigint' ? Number(params.lastRound) : params.lastRound;
 
   paymentLog.transaction('CONVERTED_PARAMS_FOR_VALIDATION', {
-    originalFirstValid: params.firstValid?.toString(),
-    convertedFirstValid: firstValidNum,
-    originalLastValid: params.lastValid?.toString(),
-    convertedLastValid: lastValidNum,
-    firstValidIsNumber: typeof firstValidNum === 'number',
-    lastValidIsNumber: typeof lastValidNum === 'number'
+    originalFirstRound: params.firstRound?.toString(),
+    convertedFirstRound: firstRoundNum,
+    originalLastRound: params.lastRound?.toString(),
+    convertedLastRound: lastRoundNum,
+    firstRoundIsNumber: typeof firstRoundNum === 'number',
+    lastRoundIsNumber: typeof lastRoundNum === 'number'
   });
 
-  if (typeof firstValidNum !== 'number' || firstValidNum <= 0) {
-    throw new Error(`Invalid firstValid value: ${params.firstValid} (converted: ${firstValidNum}). Expected a positive number.`);
+  if (typeof firstRoundNum !== 'number' || firstRoundNum <= 0) {
+    throw new Error(`Invalid firstRound value: ${params.firstRound} (converted: ${firstRoundNum}). Expected a positive number.`);
   }
 
-  if (typeof lastValidNum !== 'number' || lastValidNum <= 0) {
-    throw new Error(`Invalid lastValid value: ${params.lastValid} (converted: ${lastValidNum}). Expected a positive number.`);
+  if (typeof lastRoundNum !== 'number' || lastRoundNum <= 0) {
+    throw new Error(`Invalid lastRound value: ${params.lastRound} (converted: ${lastRoundNum}). Expected a positive number.`);
   }
 
-  if (lastValidNum <= firstValidNum) {
-    throw new Error(`Invalid round range: lastValid (${lastValidNum}) must be greater than firstValid (${firstValidNum}).`);
+  if (lastRoundNum <= firstRoundNum) {
+    throw new Error(`Invalid round range: lastRound (${lastRoundNum}) must be greater than firstRound (${firstRoundNum}).`);
   }
 
-  // FIXED: Use correct case for genesisID
   if (!params.genesisID || typeof params.genesisID !== 'string') {
     throw new Error('Transaction parameter genesisID is missing or invalid.');
   }
@@ -183,10 +182,10 @@ const validateTransactionParams = (params: any): void => {
   }
 
   paymentLog.transaction('TRANSACTION_PARAMS_VALIDATION_PASSED', {
-    firstValid: firstValidNum,
-    lastValid: lastValidNum,
-    roundRange: lastValidNum - firstValidNum,
-    genesisID: params.genesisID // FIXED: Capital 'D'
+    firstRound: firstRoundNum,
+    lastRound: lastRoundNum,
+    roundRange: lastRoundNum - firstRoundNum,
+    genesisID: params.genesisID
   });
 };
 
@@ -224,23 +223,23 @@ const getTransactionParamsWithRetry = async (
       // CRITICAL: Validate transaction parameters before proceeding
       validateTransactionParams(suggestedParams);
       
-      // CRITICAL: Ensure minimum fee is set (fix for fee: 0n issue)
-      if (suggestedParams.fee === 0n || suggestedParams.fee === 0) {
+      // CRITICAL: Ensure minimum fee is set (fix for fee: 0 issue)
+      if (suggestedParams.fee === 0) {
         paymentLog.network('FIXING_ZERO_FEE', { 
           originalFee: suggestedParams.fee,
-          newFee: 1000n,
+          newFee: 1000,
           network,
           attempt
         });
-        suggestedParams.fee = 1000n; // Set minimum fee of 1000 microAlgos
+        suggestedParams.fee = 1000; // Set minimum fee of 1000 microAlgos
       }
       
       paymentLog.transaction('TRANSACTION_PARAMS_SUCCESS', {
         fee: suggestedParams.fee,
-        firstValid: suggestedParams.firstValid?.toString(),
-        lastValid: suggestedParams.lastValid?.toString(),
+        firstRound: suggestedParams.firstRound?.toString(),
+        lastRound: suggestedParams.lastRound?.toString(),
         genesisHash: suggestedParams.genesisHash ? suggestedParams.genesisHash.slice(0, 16) : 'missing',
-        genesisID: suggestedParams.genesisID, // FIXED: Capital 'D'
+        genesisID: suggestedParams.genesisID,
         network,
         attempt,
         retriesUsed: attempt - 1
@@ -279,7 +278,7 @@ const getTransactionParamsWithRetry = async (
   });
 
   // Provide more specific error messages based on the type of failure
-  if (lastError?.message.includes('firstValid') || lastError?.message.includes('lastValid')) {
+  if (lastError?.message.includes('firstRound') || lastError?.message.includes('lastRound')) {
     throw new Error(`Algorand node error after ${maxRetries} attempts: ${lastError.message}. The ${network} network may be experiencing issues. Please try again later.`);
   } else if (lastError?.message.includes('genesisID') || lastError?.message.includes('genesisHash')) {
     throw new Error(`Network configuration error after ${maxRetries} attempts: ${lastError.message}. Please check your network connection and try again.`);
@@ -567,15 +566,15 @@ export const AlgorandProvider: React.FC<AlgorandProviderProps> = ({ children }) 
     }
   };
 
-  // FIXED: Enhanced signTransaction method for algosdk v3.0.0 and Pera Wallet compatibility
+  // FIXED: Enhanced signTransaction method for algosdk v2.7.0 and Pera Wallet compatibility
   const signTransaction = async (txn: algosdk.Transaction): Promise<Uint8Array> => {
     try {
-      // CRITICAL: Get the receiver and amount using the correct algosdk v3 properties
-      const receiver = (txn as any).payment?.receiver || txn.to;
-      const amount = (txn as any).payment?.amount || txn.amount;
+      // Get the receiver and amount using the correct algosdk v2.7.0 properties
+      const receiver = txn.to;
+      const amount = txn.amount;
       
       paymentLog.transaction('SIGNING_TRANSACTION_START', {
-        sender: txn.sender?.toString(),
+        sender: txn.from?.toString(),
         receiver: receiver?.toString(),
         amount: amount?.toString(),
         fee: txn.fee?.toString(),
@@ -585,12 +584,12 @@ export const AlgorandProvider: React.FC<AlgorandProviderProps> = ({ children }) 
       // CRITICAL: Log the complete transaction object before signing
       paymentLog.transaction('TRANSACTION_OBJECT_BEFORE_SIGNING', {
         txnType: txn.type,
-        sender: txn.sender?.toString(),
+        sender: txn.from?.toString(),
         receiver: receiver?.toString(),
         amount: amount?.toString(),
         fee: txn.fee?.toString(),
-        firstValid: txn.firstValid?.toString(),
-        lastValid: txn.lastValid?.toString(),
+        firstRound: txn.firstRound?.toString(),
+        lastRound: txn.lastRound?.toString(),
         genesisID: txn.genesisID,
         genesisHash: txn.genesisHash ? Array.from(txn.genesisHash).slice(0, 8).join(',') + '...' : 'missing',
         note: txn.note ? new TextDecoder().decode(txn.note) : 'no note',
@@ -602,8 +601,8 @@ export const AlgorandProvider: React.FC<AlgorandProviderProps> = ({ children }) 
         group: txn.group ? Array.from(txn.group).slice(0, 8).join(',') + '...' : 'no group'
       });
 
-      // CRITICAL: Validation for algosdk v3
-      if (!txn.sender) {
+      // CRITICAL: Validation for algosdk v2.7.0
+      if (!txn.from) {
         throw new Error('Transaction sender address is null or undefined');
       }
       
@@ -618,23 +617,23 @@ export const AlgorandProvider: React.FC<AlgorandProviderProps> = ({ children }) 
       }
 
       paymentLog.transaction('TRANSACTION_VALIDATION_PASSED', {
-        sender: txn.sender.toString(),
+        sender: txn.from.toString(),
         receiver: receiver?.toString() || 'N/A',
         amount: amount?.toString() || 'N/A',
         network
       });
       
       // FIXED: Pass the transaction object directly to Pera Wallet
-      // The latest @perawallet/connect should handle algosdk v3.0.0 transactions properly
-      paymentLog.transaction('PASSING_TXN_TO_PERA_WALLET', {
+      // algosdk v2.7.0 should be fully compatible with Pera Wallet Connect v1.4.1
+      paymentLog.transaction('PASSING_TXN_TO_PERA_WALLET_V2', {
         txnConstructor: txn.constructor.name,
         txnType: typeof txn,
         isTransaction: txn instanceof algosdk.Transaction,
-        hasRequiredProperties: !!(txn.sender && txn.fee && txn.firstValid && txn.lastValid)
+        hasRequiredProperties: !!(txn.from && txn.fee && txn.firstRound && txn.lastRound),
+        algodkVersion: '2.7.0'
       });
 
-      // CRITICAL: Pass the transaction object directly (not converted to bytes)
-      // Pera Wallet Connect v1.4.1+ should handle algosdk v3.0.0 properly
+      // CRITICAL: Pass the transaction object directly (algosdk v2.7.0 compatible)
       const signedTxnArray = await peraWallet.signTransaction([
         { txn: txn }  // Pass the transaction object directly
       ]);
@@ -649,15 +648,15 @@ export const AlgorandProvider: React.FC<AlgorandProviderProps> = ({ children }) 
     } catch (error) {
       paymentLog.error('TRANSACTION_SIGNING_FAILED', error, { 
         network,
-        txnSender: txn?.sender?.toString(),
-        txnReceiver: ((txn as any).payment?.receiver || txn.to)?.toString(),
-        txnAmount: ((txn as any).payment?.amount || txn.amount)?.toString()
+        txnSender: txn?.from?.toString(),
+        txnReceiver: txn?.to?.toString(),
+        txnAmount: txn?.amount?.toString()
       });
       throw error;
     }
   };
 
-  // CRITICAL: Enhanced sendPayment function with SDK v3 parameter names and IMMEDIATE transaction object inspection
+  // CRITICAL: Enhanced sendPayment function with SDK v2.7.0 parameter names
   const sendPayment = async (toAddress: string, amountInAlgo: number, note?: string): Promise<string> => {
     if (!isConnected || !accountAddress) {
       const error = new Error('Wallet not connected');
@@ -742,62 +741,63 @@ export const AlgorandProvider: React.FC<AlgorandProviderProps> = ({ children }) 
         suggestedParamsPresent: !!suggestedParams
       });
       
-      // CRITICAL: Create payment transaction with SDK v3 parameter names
+      // CRITICAL: Create payment transaction with SDK v2.7.0 parameter names
       let txn;
       try {
         // CRITICAL: Explicitly cast addresses to string primitives
         const senderAddressString = String(cleanSenderAddress);
         const receiverAddressString = String(cleanToAddress);
         
-        // CRITICAL: DEBUG LOG - Add debug log before makePaymentTxnWithSuggestedParamsFromObject
+        // CRITICAL: DEBUG LOG - Add debug log before makePaymentTxnWithSuggestedParams
         paymentLog.info('DEBUG_INPUTS_TO_MAKE_PAYMENT_TXN', {
-          sender: senderAddressString,
-          receiver: receiverAddressString,
+          from: senderAddressString,
+          to: receiverAddressString,
           amount: amountInMicroAlgos,
           suggestedParamsPresent: !!suggestedParams
         });
         
         // CRITICAL: Log the exact values being passed to the SDK
-        paymentLog.info('TXN_CREATION_INPUTS_SDK_V3', {
-          sender: senderAddressString,
-          receiver: receiverAddressString,
-          senderType: typeof senderAddressString,
-          receiverType: typeof receiverAddressString,
-          senderLength: senderAddressString.length,
-          receiverLength: receiverAddressString.length,
+        paymentLog.info('TXN_CREATION_INPUTS_SDK_V2', {
+          from: senderAddressString,
+          to: receiverAddressString,
+          fromType: typeof senderAddressString,
+          toType: typeof receiverAddressString,
+          fromLength: senderAddressString.length,
+          toLength: receiverAddressString.length,
           amount: amountInMicroAlgos,
           amountType: typeof amountInMicroAlgos,
           suggestedParamsKeys: Object.keys(suggestedParams),
-          sdkVersion: 'v3'
+          sdkVersion: '2.7.0'
         });
         
-        // CRITICAL: Use SDK v3 parameter names: sender/receiver instead of from/to
-        txn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
-          sender: senderAddressString,      // SDK v3: changed from 'from' to 'sender'
-          receiver: receiverAddressString,  // SDK v3: changed from 'to' to 'receiver'
-          amount: amountInMicroAlgos,
-          suggestedParams,
-          note: note ? new TextEncoder().encode(note) : undefined,
-        });
+        // CRITICAL: Use SDK v2.7.0 parameter names: from/to
+        txn = algosdk.makePaymentTxnWithSuggestedParams(
+          senderAddressString,      // from
+          receiverAddressString,    // to
+          amountInMicroAlgos,       // amount
+          undefined,                // closeRemainderTo
+          note ? new TextEncoder().encode(note) : undefined, // note
+          suggestedParams           // suggestedParams
+        );
 
         // CRITICAL: IMMEDIATE transaction object inspection after creation
         paymentLog.info('🚨🔥 TRANSACTION_OBJECT_IMMEDIATELY_AFTER_CREATION 🔥🚨', {
           txnExists: !!txn,
           txnType: typeof txn,
           txnConstructor: txn?.constructor?.name,
-          // CRITICAL: Check all transaction properties
-          txnSender: txn?.sender?.toString() || 'UNDEFINED',
-          txnReceiver: ((txn as any)?.payment?.receiver || txn?.to)?.toString() || 'UNDEFINED',
-          txnAmount: ((txn as any)?.payment?.amount || txn?.amount)?.toString() || 'UNDEFINED',
+          // CRITICAL: Check all transaction properties for v2.7.0
+          txnFrom: txn?.from?.toString() || 'UNDEFINED',
+          txnTo: txn?.to?.toString() || 'UNDEFINED',
+          txnAmount: txn?.amount?.toString() || 'UNDEFINED',
           txnFee: txn?.fee?.toString() || 'UNDEFINED',
-          txnFirstValid: txn?.firstValid?.toString() || 'UNDEFINED',
-          txnLastValid: txn?.lastValid?.toString() || 'UNDEFINED',
+          txnFirstRound: txn?.firstRound?.toString() || 'UNDEFINED',
+          txnLastRound: txn?.lastRound?.toString() || 'UNDEFINED',
           txnGenesisID: txn?.genesisID || 'UNDEFINED',
           txnGenesisHash: txn?.genesisHash ? 'present' : 'UNDEFINED',
           // Check all transaction properties
           allTxnKeys: txn ? Object.keys(txn) : 'NO_TXN',
           network,
-          sdkVersion: 'v3'
+          sdkVersion: '2.7.0'
         });
 
         paymentLog.transaction('TRANSACTION_CREATED_SUCCESS', {
@@ -808,7 +808,7 @@ export const AlgorandProvider: React.FC<AlgorandProviderProps> = ({ children }) 
           note: note?.substring(0, 50),
           network,
           txnType: txn.type,
-          sdkVersion: 'v3'
+          sdkVersion: '2.7.0'
         });
       } catch (txnError) {
         paymentLog.error('TRANSACTION_CREATION_FAILED', txnError, { 
@@ -816,7 +816,7 @@ export const AlgorandProvider: React.FC<AlgorandProviderProps> = ({ children }) 
           senderAddress: cleanSenderAddress,
           receiverAddress: cleanToAddress,
           amountInMicroAlgos,
-          sdkVersion: 'v3'
+          sdkVersion: '2.7.0'
         });
         throw new Error(`Failed to create transaction: ${txnError.message}`);
       }
