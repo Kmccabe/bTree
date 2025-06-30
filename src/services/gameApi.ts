@@ -1,13 +1,9 @@
 // Dynamic API URL based on environment
 const getApiUrl = () => {
-  // Always use Railway backend for now since that's where your server is running
-  return 'https://btree-production.up.railway.app/api';
-  
-  // Original logic (commented out for now):
-  // if (import.meta.env.PROD) {
-  //   return 'https://btree-production.up.railway.app/api';
-  // }
-  // return 'http://localhost:3001/api';
+  if (import.meta.env.PROD) {
+    return 'https://btree-production.up.railway.app/api';
+  }
+  return 'http://localhost:3001/api';
 };
 
 const API_BASE_URL = getApiUrl();
