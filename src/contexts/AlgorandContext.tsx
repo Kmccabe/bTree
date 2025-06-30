@@ -127,7 +127,7 @@ const logTransactionParams = (suggestedParams: any, attempt: number) => {
   );
 };
 
-// CRITICAL: Enhanced transaction parameter validation for algosdk v2.7.0
+// CRITICAL: Enhanced transaction parameter validation for algosdk v3.0.0
 const validateTransactionParams = (params: any): void => {
   paymentLog.transaction('VALIDATING_TRANSACTION_PARAMS', {
     fee: params.fee?.toString(),
@@ -136,10 +136,12 @@ const validateTransactionParams = (params: any): void => {
     lastRound: params.lastRound?.toString(),
     lastRoundType: typeof params.lastRound,
     genesisID: params.genesisID,
-    genesisHash: params.genesisHash ? 'present' : 'missing'
+    genesisHash: params.genesisHash ? 'present' : 'missing',
+    genesisHashType: typeof params.genesisHash,
+    genesisHashLength: params.genesisHash?.length
   });
 
-  // algosdk v2.7.0 uses firstRound and lastRound
+  // algosdk v3.0.0 uses firstRound and lastRound
   if (params.firstRound === undefined || params.firstRound === null) {
     throw new Error('Transaction parameter firstRound is undefined or null. The Algorand node may not be responding correctly.');
   }
@@ -177,15 +179,36 @@ const validateTransactionParams = (params: any): void => {
     throw new Error('Transaction parameter genesisID is missing or invalid.');
   }
 
-  if (!params.genesisHash || !(params.genesisHash instanceof Uint8Array)) {
-    throw new Error('Transaction parameter genesisHash is missing or invalid.');
+  // FIXED: More flexible genesisHash validation
+  if (!params.genesisHash) {
+    throw new Error('Transaction parameter genesisHash is missing.');
+  }
+
+  // Check if genesisHash is a Uint8Array, string, or Buffer
+  const isValidGenesisHash = 
+    params.genesisHash instanceof Uint8Array ||
+    (typeof params.genesisHash === 'string' && params.genesisHash.length > 0) ||
+    (params.genesisHash && typeof params.genesisHash === 'object' && params.genesisHash.length !== undefined);
+
+  if (!isValidGenesisHash) {
+    paymentLog.error('GENESIS_HASH_VALIDATION_DETAILS', new Error('Invalid genesisHash'), {
+      genesisHash: params.genesisHash,
+      genesisHashType: typeof params.genesisHash,
+      genesisHashConstructor: params.genesisHash?.constructor?.name,
+      isUint8Array: params.genesisHash instanceof Uint8Array,
+      hasLength: params.genesisHash?.length !== undefined,
+      length: params.genesisHash?.length
+    });
+    throw new Error('Transaction parameter genesisHash is invalid. Expected Uint8Array, string, or Buffer.');
   }
 
   paymentLog.transaction('TRANSACTION_PARAMS_VALIDATION_PASSED', {
     firstRound: firstRoundNum,
     lastRound: lastRoundNum,
     roundRange: lastRoundNum - firstRoundNum,
-    genesisID: params.genesisID
+    genesisID: params.genesisID,
+    genesisHashType: typeof params.genesisHash,
+    genesisHashValid: true
   });
 };
 
@@ -566,10 +589,10 @@ export const AlgorandProvider: React.FC<AlgorandProviderProps> = ({ children }) 
     }
   };
 
-  // FIXED: Enhanced signTransaction method for algosdk v2.7.0 and Pera Wallet compatibility
+  // FIXED: Enhanced signTransaction method for algosdk v3.0.0 and Pera Wallet compatibility
   const signTransaction = async (txn: algosdk.Transaction): Promise<Uint8Array> => {
     try {
-      // Get the receiver and amount using the correct algosdk v2.7.0 properties
+      // Get the receiver and amount using the correct algosdk v3.0.0 properties
       const receiver = txn.to;
       const amount = txn.amount;
       
@@ -601,7 +624,7 @@ export const AlgorandProvider: React.FC<AlgorandProviderProps> = ({ children }) 
         group: txn.group ? Array.from(txn.group).slice(0, 8).join(',') + '...' : 'no group'
       });
 
-      // CRITICAL: Validation for algosdk v2.7.0
+      // CRITICAL: Validation for algosdk v3.0.0
       if (!txn.from) {
         throw new Error('Transaction sender address is null or undefined');
       }
@@ -624,16 +647,16 @@ export const AlgorandProvider: React.FC<AlgorandProviderProps> = ({ children }) 
       });
       
       // FIXED: Pass the transaction object directly to Pera Wallet
-      // algosdk v2.7.0 should be fully compatible with Pera Wallet Connect v1.4.1
-      paymentLog.transaction('PASSING_TXN_TO_PERA_WALLET_V2', {
+      // algosdk v3.0.0 should be fully compatible with Pera Wallet Connect v1.4.1
+      paymentLog.transaction('PASSING_TXN_TO_PERA_WALLET_V3', {
         txnConstructor: txn.constructor.name,
         txnType: typeof txn,
         isTransaction: txn instanceof algosdk.Transaction,
         hasRequiredProperties: !!(txn.from && txn.fee && txn.firstRound && txn.lastRound),
-        algodkVersion: '2.7.0'
+        algodkVersion: '3.0.0'
       });
 
-      // CRITICAL: Pass the transaction object directly (algosdk v2.7.0 compatible)
+      // CRITICAL: Pass the transaction object directly (algosdk v3.0.0 compatible)
       const signedTxnArray = await peraWallet.signTransaction([
         { txn: txn }  // Pass the transaction object directly
       ]);
@@ -656,7 +679,7 @@ export const AlgorandProvider: React.FC<AlgorandProviderProps> = ({ children }) 
     }
   };
 
-  // CRITICAL: Enhanced sendPayment function with SDK v2.7.0 parameter names
+  // CRITICAL: Enhanced sendPayment function with SDK v3.0.0 parameter names
   const sendPayment = async (toAddress: string, amountInAlgo: number, note?: string): Promise<string> => {
     if (!isConnected || !accountAddress) {
       const error = new Error('Wallet not connected');
@@ -741,7 +764,7 @@ export const AlgorandProvider: React.FC<AlgorandProviderProps> = ({ children }) 
         suggestedParamsPresent: !!suggestedParams
       });
       
-      // CRITICAL: Create payment transaction with SDK v2.7.0 parameter names
+      // CRITICAL: Create payment transaction with SDK v3.0.0 parameter names
       let txn;
       try {
         // CRITICAL: Explicitly cast addresses to string primitives
@@ -757,7 +780,7 @@ export const AlgorandProvider: React.FC<AlgorandProviderProps> = ({ children }) 
         });
         
         // CRITICAL: Log the exact values being passed to the SDK
-        paymentLog.info('TXN_CREATION_INPUTS_SDK_V2', {
+        paymentLog.info('TXN_CREATION_INPUTS_SDK_V3', {
           from: senderAddressString,
           to: receiverAddressString,
           fromType: typeof senderAddressString,
@@ -767,10 +790,10 @@ export const AlgorandProvider: React.FC<AlgorandProviderProps> = ({ children }) 
           amount: amountInMicroAlgos,
           amountType: typeof amountInMicroAlgos,
           suggestedParamsKeys: Object.keys(suggestedParams),
-          sdkVersion: '2.7.0'
+          sdkVersion: '3.0.0'
         });
         
-        // CRITICAL: Use SDK v2.7.0 parameter names: from/to
+        // CRITICAL: Use SDK v3.0.0 parameter names: from/to
         txn = algosdk.makePaymentTxnWithSuggestedParams(
           senderAddressString,      // from
           receiverAddressString,    // to
@@ -785,7 +808,7 @@ export const AlgorandProvider: React.FC<AlgorandProviderProps> = ({ children }) 
           txnExists: !!txn,
           txnType: typeof txn,
           txnConstructor: txn?.constructor?.name,
-          // CRITICAL: Check all transaction properties for v2.7.0
+          // CRITICAL: Check all transaction properties for v3.0.0
           txnFrom: txn?.from?.toString() || 'UNDEFINED',
           txnTo: txn?.to?.toString() || 'UNDEFINED',
           txnAmount: txn?.amount?.toString() || 'UNDEFINED',
@@ -797,7 +820,7 @@ export const AlgorandProvider: React.FC<AlgorandProviderProps> = ({ children }) 
           // Check all transaction properties
           allTxnKeys: txn ? Object.keys(txn) : 'NO_TXN',
           network,
-          sdkVersion: '2.7.0'
+          sdkVersion: '3.0.0'
         });
 
         paymentLog.transaction('TRANSACTION_CREATED_SUCCESS', {
@@ -808,7 +831,7 @@ export const AlgorandProvider: React.FC<AlgorandProviderProps> = ({ children }) 
           note: note?.substring(0, 50),
           network,
           txnType: txn.type,
-          sdkVersion: '2.7.0'
+          sdkVersion: '3.0.0'
         });
       } catch (txnError) {
         paymentLog.error('TRANSACTION_CREATION_FAILED', txnError, { 
@@ -816,7 +839,7 @@ export const AlgorandProvider: React.FC<AlgorandProviderProps> = ({ children }) 
           senderAddress: cleanSenderAddress,
           receiverAddress: cleanToAddress,
           amountInMicroAlgos,
-          sdkVersion: '2.7.0'
+          sdkVersion: '3.0.0'
         });
         throw new Error(`Failed to create transaction: ${txnError.message}`);
       }
