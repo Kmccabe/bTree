@@ -16,7 +16,12 @@
   "devDependencies": {
     "nodemon": "^3.0.1"
   },
-  "keywords": ["experimental-economics", "algorand", "websocket"],
-  "author": "bTree Team",
+  "keywords": [
+    "experimental-economics",
+    "algorand",
+    "blockchain",
+    "research"
+  ],
+  "author": "",
   "license": "MIT"
 }

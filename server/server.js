@@ -8,19 +8,15 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
-    origin: ["http://localhost:5173", "http://localhost:3000"],
-    methods: ["GET", "POST"],
-    credentials: true
+    origin: "http://localhost:5173",
+    methods: ["GET", "POST"]
   }
 });
 
 const PORT = process.env.PORT || 3001;
 
 // Middleware
-app.use(cors({
-  origin: ["http://localhost:5173", "http://localhost:3000"],
-  credentials: true
-}));
+app.use(cors());
 app.use(express.json());
 
 // In-memory storage
@@ -28,9 +24,9 @@ const experiments = new Map();
 const games = new Map();
 const participants = new Map();
 
-// REST API Routes
+// API Routes
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'OK', timestamp: new Date().toISOString() });
+  res.json({ status: 'OK', message: 'bTree server is running' });
 });
 
 app.post('/api/experiments', (req, res) => {
@@ -38,12 +34,12 @@ app.post('/api/experiments', (req, res) => {
   const experiment = {
     id: experimentId,
     ...req.body,
-    createdAt: new Date().toISOString(),
+    createdAt: new Date(),
     status: 'created'
   };
   
   experiments.set(experimentId, experiment);
-  res.json(experiment);
+  res.json({ experimentId, experiment });
 });
 
 app.get('/api/experiments/:id', (req, res) => {
@@ -65,12 +61,12 @@ app.post('/api/experiments/:id/join', (req, res) => {
     id: participantId,
     experimentId: req.params.id,
     walletAddress: req.body.walletAddress,
-    joinedAt: new Date().toISOString(),
+    joinedAt: new Date(),
     status: 'joined'
   };
   
   participants.set(participantId, participant);
-  res.json(participant);
+  res.json({ participantId, participant });
 });
 
 app.post('/api/games/:id/create', (req, res) => {
@@ -78,295 +74,141 @@ app.post('/api/games/:id/create', (req, res) => {
   const game = {
     id: gameId,
     ...req.body,
-    createdAt: new Date().toISOString(),
+    createdAt: new Date(),
     status: 'waiting',
     participants: [],
     gameState: {}
   };
   
   games.set(gameId, game);
-  res.json(game);
+  res.json({ gameId, game });
 });
 
-app.get('/api/games/:id', (req, res) => {
+app.post('/api/games/:id/update', (req, res) => {
   const game = games.get(req.params.id);
   if (!game) {
     return res.status(404).json({ error: 'Game not found' });
   }
+  
+  Object.assign(game, req.body);
+  games.set(req.params.id, game);
+  
+  // Broadcast update to all participants in the game
+  io.to(`game-${req.params.id}`).emit('gameStateUpdate', game);
+  
   res.json(game);
 });
 
-// Socket.IO event handlers
+// Socket.IO connection handling
 io.on('connection', (socket) => {
-  console.log('Client connected:', socket.id);
+  console.log('New client connected:', socket.id);
 
   socket.on('joinExperiment', (data) => {
-    const { experimentId, participantId, walletAddress } = data;
+    const { experimentId, participantId } = data;
+    socket.join(`experiment-${experimentId}`);
+    socket.join(`participant-${participantId}`);
     
-    socket.join(experimentId);
-    socket.participantId = participantId;
-    socket.experimentId = experimentId;
+    console.log(`Participant ${participantId} joined experiment ${experimentId}`);
     
-    // Update participant info
-    if (participants.has(participantId)) {
-      const participant = participants.get(participantId);
-      participant.socketId = socket.id;
-      participant.status = 'connected';
-      participants.set(participantId, participant);
-    }
-    
-    // Broadcast updated participant list
-    const experimentParticipants = Array.from(participants.values())
-      .filter(p => p.experimentId === experimentId);
-    
-    io.to(experimentId).emit('participantUpdate', {
-      participants: experimentParticipants,
-      totalConnected: experimentParticipants.filter(p => p.status === 'connected').length
-    });
-    
-    socket.emit('joinedExperiment', { 
-      success: true, 
+    // Notify other participants
+    socket.to(`experiment-${experimentId}`).emit('participantJoined', {
       participantId,
-      experimentId 
+      socketId: socket.id
     });
   });
 
-  socket.on('participantReady', (data) => {
-    const { participantId, experimentId } = data;
+  socket.on('joinGame', (data) => {
+    const { gameId, participantId } = data;
+    socket.join(`game-${gameId}`);
     
-    if (participants.has(participantId)) {
-      const participant = participants.get(participantId);
-      participant.status = 'ready';
-      participants.set(participantId, participant);
+    const game = games.get(gameId);
+    if (game) {
+      // Add participant to game if not already present
+      if (!game.participants.find(p => p.id === participantId)) {
+        game.participants.push({
+          id: participantId,
+          socketId: socket.id,
+          ready: false
+        });
+        games.set(gameId, game);
+      }
       
-      // Check if all participants are ready
-      const experimentParticipants = Array.from(participants.values())
-        .filter(p => p.experimentId === experimentId);
+      // Send current game state to the joining participant
+      socket.emit('gameStateUpdate', game);
       
-      const readyCount = experimentParticipants.filter(p => p.status === 'ready').length;
-      
-      io.to(experimentId).emit('participantUpdate', {
-        participants: experimentParticipants,
-        readyCount,
-        totalParticipants: experimentParticipants.length
-      });
-      
-      // Start game if all participants are ready
-      const experiment = experiments.get(experimentId);
-      if (experiment && readyCount >= experiment.minParticipants) {
-        startGame(experimentId, experimentParticipants);
+      // Notify other participants
+      socket.to(`game-${gameId}`).emit('participantUpdate', game.participants);
+    }
+  });
+
+  socket.on('participantReady', (data) => {
+    const { gameId, participantId } = data;
+    const game = games.get(gameId);
+    
+    if (game) {
+      const participant = game.participants.find(p => p.id === participantId);
+      if (participant) {
+        participant.ready = true;
+        games.set(gameId, game);
+        
+        // Check if all participants are ready
+        const allReady = game.participants.every(p => p.ready);
+        if (allReady && game.participants.length >= (game.minParticipants || 2)) {
+          game.status = 'active';
+          game.startedAt = new Date();
+          games.set(gameId, game);
+          
+          io.to(`game-${gameId}`).emit('gameStarted', game);
+        }
+        
+        io.to(`game-${gameId}`).emit('participantUpdate', game.participants);
       }
     }
   });
 
   socket.on('submitDecision', (data) => {
-    const { gameId, participantId, decision, round } = data;
+    const { gameId, participantId, decision } = data;
+    const game = games.get(gameId);
     
-    if (games.has(gameId)) {
-      const game = games.get(gameId);
-      
-      // Update game state with decision
-      if (!game.gameState.decisions) {
-        game.gameState.decisions = {};
-      }
-      if (!game.gameState.decisions[round]) {
-        game.gameState.decisions[round] = {};
+    if (game) {
+      if (!game.decisions) {
+        game.decisions = {};
       }
       
-      game.gameState.decisions[round][participantId] = decision;
+      game.decisions[participantId] = {
+        ...decision,
+        timestamp: new Date()
+      };
+      
       games.set(gameId, game);
       
-      // Broadcast game state update
-      io.to(game.experimentId).emit('gameStateUpdate', {
-        gameId,
-        gameState: game.gameState,
-        round,
-        decision: { participantId, ...decision }
+      // Broadcast decision update (without revealing private information)
+      io.to(`game-${gameId}`).emit('decisionSubmitted', {
+        participantId,
+        hasDecision: true
       });
       
-      // Check if round is complete
-      checkRoundComplete(gameId, round);
+      // Check if all participants have submitted decisions
+      const allDecisionsSubmitted = game.participants.every(p => 
+        game.decisions[p.id]
+      );
+      
+      if (allDecisionsSubmitted) {
+        // Process game logic here
+        game.status = 'completed';
+        game.completedAt = new Date();
+        games.set(gameId, game);
+        
+        io.to(`game-${gameId}`).emit('gameCompleted', game);
+      }
     }
   });
 
   socket.on('disconnect', () => {
     console.log('Client disconnected:', socket.id);
-    
-    if (socket.participantId && participants.has(socket.participantId)) {
-      const participant = participants.get(socket.participantId);
-      participant.status = 'disconnected';
-      participants.set(socket.participantId, participant);
-      
-      // Broadcast updated participant list
-      if (socket.experimentId) {
-        const experimentParticipants = Array.from(participants.values())
-          .filter(p => p.experimentId === socket.experimentId);
-        
-        io.to(socket.experimentId).emit('participantUpdate', {
-          participants: experimentParticipants,
-          totalConnected: experimentParticipants.filter(p => p.status === 'connected').length
-        });
-      }
-    }
   });
 });
 
-function startGame(experimentId, participants) {
-  const experiment = experiments.get(experimentId);
-  if (!experiment) return;
-  
-  const gameId = uuidv4();
-  const game = {
-    id: gameId,
-    experimentId,
-    type: experiment.type,
-    participants: participants.map(p => p.id),
-    gameState: {
-      phase: 'started',
-      round: 1,
-      maxRounds: experiment.rounds || 1,
-      roles: assignRoles(participants, experiment.type)
-    },
-    createdAt: new Date().toISOString(),
-    status: 'active'
-  };
-  
-  games.set(gameId, game);
-  
-  io.to(experimentId).emit('gameStarted', {
-    gameId,
-    gameState: game.gameState,
-    participants: game.participants
-  });
-}
-
-function assignRoles(participants, gameType) {
-  const roles = {};
-  
-  if (gameType === 'trust-game') {
-    // Assign Player A and Player B roles
-    participants.forEach((participant, index) => {
-      roles[participant.id] = index % 2 === 0 ? 'playerA' : 'playerB';
-    });
-  }
-  
-  return roles;
-}
-
-function checkRoundComplete(gameId, round) {
-  const game = games.get(gameId);
-  if (!game) return;
-  
-  const decisions = game.gameState.decisions[round] || {};
-  const expectedDecisions = game.participants.length;
-  
-  if (Object.keys(decisions).length >= expectedDecisions) {
-    // Round is complete, process results
-    processRoundResults(gameId, round);
-  }
-}
-
-function processRoundResults(gameId, round) {
-  const game = games.get(gameId);
-  if (!game) return;
-  
-  // Calculate results based on game type
-  let results = {};
-  
-  if (game.type === 'trust-game') {
-    results = processTrustGameRound(game, round);
-  }
-  
-  // Update game state with results
-  if (!game.gameState.results) {
-    game.gameState.results = {};
-  }
-  game.gameState.results[round] = results;
-  
-  // Check if game is complete
-  if (round >= game.gameState.maxRounds) {
-    game.gameState.phase = 'completed';
-    game.status = 'completed';
-  } else {
-    game.gameState.round = round + 1;
-    game.gameState.phase = 'round-transition';
-  }
-  
-  games.set(gameId, game);
-  
-  // Broadcast results
-  io.to(game.experimentId).emit('roundComplete', {
-    gameId,
-    round,
-    results,
-    gameState: game.gameState
-  });
-  
-  if (game.status === 'completed') {
-    io.to(game.experimentId).emit('gameComplete', {
-      gameId,
-      finalResults: game.gameState.results,
-      gameState: game.gameState
-    });
-  }
-}
-
-function processTrustGameRound(game, round) {
-  const decisions = game.gameState.decisions[round];
-  const roles = game.gameState.roles;
-  const results = {};
-  
-  // Find Player A and Player B decisions
-  let playerADecision = null;
-  let playerBDecision = null;
-  let playerAId = null;
-  let playerBId = null;
-  
-  for (const [participantId, decision] of Object.entries(decisions)) {
-    if (roles[participantId] === 'playerA') {
-      playerADecision = decision;
-      playerAId = participantId;
-    } else if (roles[participantId] === 'playerB') {
-      playerBDecision = decision;
-      playerBId = participantId;
-    }
-  }
-  
-  if (playerADecision && playerBDecision) {
-    const sentAmount = playerADecision.amount || 0;
-    const multiplier = 3; // Standard trust game multiplier
-    const receivedAmount = sentAmount * multiplier;
-    const returnAmount = playerBDecision.amount || 0;
-    
-    results[playerAId] = {
-      role: 'playerA',
-      sent: sentAmount,
-      received: returnAmount,
-      finalAmount: (100 - sentAmount) + returnAmount // Starting endowment minus sent plus returned
-    };
-    
-    results[playerBId] = {
-      role: 'playerB',
-      received: receivedAmount,
-      returned: returnAmount,
-      finalAmount: receivedAmount - returnAmount // Received minus returned
-    };
-  }
-  
-  return results;
-}
-
-// Start server
 server.listen(PORT, () => {
   console.log(`Trust Game Server running on port ${PORT}`);
-  console.log(`WebSocket server ready for connections`);
-});
-
-// Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('SIGTERM received, shutting down gracefully');
-  server.close(() => {
-    console.log('Server closed');
-    process.exit(0);
-  });
 });
